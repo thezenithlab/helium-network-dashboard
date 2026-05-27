@@ -2,7 +2,6 @@
 # Serves the research dashboard (index.html + data.json) with nginx.
 #
 # Build & run:
-#   cd scraper/dashboard
 #   docker build -t helium-dashboard .
 #   docker run --rm -p 8080:80 helium-dashboard
 #
@@ -17,8 +16,9 @@
 FROM nginx:alpine
 
 # Copy dashboard files into nginx's default serve directory
-COPY index.html /usr/share/nginx/html/index.html
-COPY data.json  /usr/share/nginx/html/data.json
+COPY index.html    /usr/share/nginx/html/index.html
+COPY data.json     /usr/share/nginx/html/data.json
+COPY coverage.json /usr/share/nginx/html/coverage.json
 
 # Minimal nginx config: serve static files, disable server_tokens for security
 RUN printf 'server {\n\
