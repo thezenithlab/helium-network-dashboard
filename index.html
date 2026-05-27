@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helium Network Research Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d29;
+            --border: #2a2d3a;
+            --text: #e0e0e0;
+            --muted: #8b8fa3;
+            --accent: #6366f1;
+            --accent2: #22d3ee;
+            --green: #22c55e;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --pink: #ec4899;
+        }
+        [data-theme="light"] {
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --border: #dde1ef;
+            --text: #1a1d29;
+            --muted: #5b6173;
+            --accent: #4f46e5;
+            --accent2: #0891b2;
+            --green: #16a34a;
+            --orange: #d97706;
+            --red: #dc2626;
+            --pink: #db2777;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 { font-size: 1.8rem; font-weight: 700; }
+        .header p { color: var(--muted); margin-top: 0.25rem; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+        }
+        .kpi {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .kpi-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-value { font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem; }
+        .kpi-sub { color: var(--muted); font-size: 0.75rem; margin-top: 0.25rem; }
+        .section {
+            padding: 1.5rem 2rem;
+        }
+        .section h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+            gap: 1.5rem;
+        }
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 350px;
+        }
+        .chart-card h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.5rem 0.5rem 0;
+        }
+        .chart-title {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: help;
+            border-bottom: 1px dotted var(--muted);
+        }
+        .chart-title::before {
+            content: "i";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            font-size: 0.7rem;
+            border: 1px solid var(--muted);
+            border-radius: 50%;
+            color: var(--muted);
+        }
+        .chart-title::after {
+            content: attr(data-definition);
+            position: absolute;
+            left: 0;
+            top: calc(100% + 8px);
+            width: min(460px, 80vw);
+            opacity: 0;
+            transform: translateY(-4px);
+            pointer-events: none;
+            transition: all 0.15s ease;
+            background: #0b0d12;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.55rem 0.7rem;
+            color: var(--text);
+            font-size: 0.78rem;
+            font-weight: 400;
+            line-height: 1.4;
+            z-index: 5;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+        }
+        .chart-title:hover::after,
+        .chart-title:focus-visible::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .chart-container { width: 100%; height: 320px; }
+        .chart-wide { grid-column: 1 / -1; }
+        .coverage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.5rem;
+        }
+        .cov-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.4rem 0.75rem;
+            background: var(--card);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .cov-name { flex: 1; font-size: 0.82rem; font-family: monospace; }
+        .cov-bar-bg { width: 100px; height: 6px; background: var(--border); border-radius: 3px; }
+        .cov-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
+        .cov-pct { font-size: 0.78rem; width: 42px; text-align: right; color: var(--muted); }
+        /* Override Leaflet's tile layer filter for dark mode */
+        [data-theme="dark"] .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7); }
+        [data-theme="dark"] .leaflet-container { background: #1a1d29; }
+        .tab-bar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .footnote {
+            padding: 1.5rem 2rem;
+            color: var(--muted);
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+        .header-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .theme-toggle {
+            cursor: pointer;
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--muted);
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-top: 0.4rem;
+        }
+        .theme-toggle:hover { color: var(--text); border-color: var(--muted); }
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <div>
+                <h1>Helium Network Research Dashboard</h1>
+                <p>HICSS-58 Extension Study — Pouria Rad, Mohsen Jozani &amp; Gianluca Zanella</p>
+            </div>
+            <button id="theme-btn" class="theme-toggle" onclick="toggleTheme()">&#9728;&#xFE0E; Light</button>
+        </div>
+    </div>
+
+    <div id="kpis" class="kpi-grid"></div>
+
+    <div class="tab-bar">
+        <div class="tab active" data-tab="prices">Prices</div>
+        <div class="tab" data-tab="network">Network</div>
+        <div class="tab" data-tab="hotspots">Hotspots</div>
+        <div class="tab" data-tab="mobile">Mobile</div>
+        <div class="tab" data-tab="correlation">Correlation</div>
+        <div class="tab" data-tab="coverage">Data Coverage</div>
+        <div class="tab" data-tab="map">&#x1F5FA; Map</div>
+    </div>
+
+    <div id="tab-prices" class="tab-content active">
+        <div class="section">
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="HNT daily close price with its validated 7-day moving average. Vertical lines mark the Solana migration (2023-04-18) and Helium Mobile 5G launch (2023-12-05) to contextualize structural shifts.">HNT Price &amp; 7-Day Moving Average</h3>
+                    <div id="chart-hnt-price" class="chart-container"></div>
+                </div>
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="HNT and BTC prices indexed to 1.0 at the Solana migration date (2023-04-18). Enables direct comparison of relative performance post-migration, removing level differences between the two assets.">HNT vs BTC Relative Performance (Migration = 1.0)</h3>
+                    <div id="chart-hnt-btc-norm" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Annualized 30-day rolling volatility of HNT and BTC computed from daily log-returns. Volatility &sigma; = std(log-returns over 30 days) × √365 × 100. Higher HNT volatility relative to BTC signals idiosyncratic (Helium-specific) risk.">30-Day Rolling Annualized Volatility (%)</h3>
+                    <div id="chart-volatility" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Dollar-denominated HNT traded volume per day. Useful as a market attention/liquidity proxy when interpreting price shocks.">HNT Trading Volume (USD)</h3>
+                    <div id="chart-hnt-volume" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="BTC close price used as the macro crypto control variable. Helps separate Helium-specific effects from broader market movements.">BTC Price (Control Variable)</h3>
+                    <div id="chart-btc-price" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="IOT subDAO token close price series. Coverage is partial due to free-tier historical limits from upstream data providers.">IOT Token Price</h3>
+                    <div id="chart-iot-price" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="MOBILE subDAO token close price series. Used to track market valuation of the mobile-side token economy.">MOBILE Token Price</h3>
+                    <div id="chart-mobile-price" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-network" class="tab-content">
+        <div class="section">
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Daily DC burn transaction count (gray bars) with 7-day and 30-day moving averages overlaid. The 30-day MA filters noise to reveal structural demand trends — a standard signal-smoothing technique in time-series econometrics.">DC Burns/day with 7 &amp; 30-Day Moving Averages</h3>
+                    <div id="chart-dc-burns" class="chart-container"></div>
+                </div>
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Cumulative sum of all DC burn transactions post-Solana migration. Reflects total accumulated network usage demand. Plateau periods indicate reduced IoT data demand; steep rises indicate adoption surges.">Cumulative DC Burn Transactions (Post-Migration)</h3>
+                    <div id="chart-dc-cumulative" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Median DC burn transaction count by day of week (Mon–Sun). Tests whether IoT data transmission exhibits weekday-weekend periodicity — relevant for identifying human-driven vs sensor-driven usage patterns.">DC Burns by Day of Week (Median, All Time)</h3>
+                    <div id="chart-dc-dow" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Stacked daily DC burned values split by IoT and Mobile subDAOs from Dune-derived revenue data.">DC Burned by SubDAO (IoT vs Mobile)</h3>
+                    <div id="chart-dc-subdao" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Monthly aggregation of DC burn transaction counts to smooth daily noise and highlight medium-term usage trends.">Monthly DC Burn Transactions</h3>
+                    <div id="chart-monthly-burns" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-mobile" class="tab-content">
+        <div class="section">
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Cumulative Helium Mobile subscriber NFT count (Dune, blue) alongside cumulative 5G radio deployments from on-chain Solana entity scan (pink). Infrastructure supply vs demand side of the mobile network.">Mobile Subscribers vs 5G Radio Deployments</h3>
+                    <div id="chart-subscribers" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Daily new 5G radio onboarding events from Solana on-chain entity manager (post-migration hotspot creation proxy for the Mobile subDAO). Analogous to daily_hotspot_creations for the IoT era.">Daily New 5G Radio Deployments (Post-Migration)</h3>
+                    <div id="chart-mobile-radios-daily" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="30-day rolling percentage growth in cumulative Mobile subscribers. Positive values indicate ongoing adoption acceleration; deceleration (shrinking positive) signals market saturation.">Mobile Subscriber 30-Day Growth Rate (%)</h3>
+                    <div id="chart-sub-growth" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Daily mobile network data usage from Helium metrics feed, measured in terabytes.">Mobile Data Traffic (TB/day)</h3>
+                    <div id="chart-data-tb" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="MOBILE treasury token balance from Dune. Indicates treasury position and token reserve dynamics.">MOBILE Treasury Balance</h3>
+                    <div id="chart-treasury" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-hotspots" class="tab-content">
+        <div class="section">
+            <h2>Pre-Solana Era (2021–2023) — HICSS Research Data</h2>
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Daily new hotspot activations (green) vs daily hotspot deaths/churn (red, inverted) across the Helium IoT network. Data sourced from the HICSS paper V6 dataset covering pre-Solana era 2021–2023. A decline in creations and rise in deaths signals network consolidation.">Daily Hotspot Creations vs Deaths (Pre-Solana Era)</h3>
+                    <div id="chart-hotspot-create-death" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Net daily change in active hotspot count (creations minus deaths). Positive values (green bars) indicate network growth; negative values (red bars) indicate churn exceeding new onboarding. Amber line marks Solana migration.">Net Daily Hotspot Change</h3>
+                    <div id="chart-hotspot-net" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Cumulative total active hotspot count over full history. Peak was ~964K hotspots in April 2023 before Solana migration. Data from HICSS V6 dataset merged with Wayback Machine snapshots and post-Solana Solana entity scans.">Total Hotspot Count (Full History)</h3>
+                    <div id="chart-hotspot-total" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Unique hotspot owner count over time (pre-Solana era, HICSS data). Tracks breadth of network participation — individual operators — distinct from total hardware count. Peak was ~428K owners in April 2023.">Unique Hotspot Owners</h3>
+                    <div id="chart-hotspot-owners" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+        <div class="section">
+            <div style="background:#1e2030;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:0.85rem;color:var(--muted);">
+                <strong style="color:#f59e0b;">&#x26A0; Data Limitation — Post-Solana Hotspot Deaths</strong><br>
+                The Helium Solana entity manager records <em>onboarding</em> events only — there is no on-chain &ldquo;death&rdquo; or deactivation instruction. Post-Solana hotspot churn cannot be recovered from blockchain data. The only available proxy is the oracle <code>active_iot_devices</code> snapshot delta (2 data points: Apr 7 → Apr 20, 2026: 207,332 → 204,389 = &minus;2,943 net), which will grow at 1 point per day via the daily scraper. IoT cumulative registrations (from <code>--mode iot --backfill</code> scan, pending) will enable a lifetime-registered minus active calculation once available.
+            </div>
+            <h2>Post-Solana Era (2023–Present) — On-Chain Entity Scan</h2>
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Cumulative 5G (MOBILE) radio deployments from Solana on-chain entity manager. Each point represents a hotspot operator's radio registered on-chain — the post-migration equivalent of pre-Solana hotspot activations for the Mobile subDAO. IoT hotspot count to follow once IoT backfill scan completes.">Cumulative 5G Radio Registrations (Post-Migration)</h3>
+                    <div id="chart-radio-cumulative" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Daily new 5G MOBILE radio onboarding events from Solana entity scan. Analogous to daily_hotspot_creations for the IoT era. Spikes indicate events (e.g., incentive programs, carrier partnerships) driving rapid deployment acceleration.">Daily New 5G Radio Onboardings</h3>
+                    <div id="chart-radio-daily" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Note: Post-Solana hotspot 'deaths' (deactivations) cannot be recovered from on-chain data — the Helium entity manager only records onboarding events, not deactivation. The proxy for IoT churn is the oracle active_iot_devices delta, available from periodic scraper snapshots. Current oracle data: 207,332 active IoT devices (Apr 7) → 204,389 (Apr 20) = −2,943 net change over 13 days.">IoT Active Device Trend (Oracle Snapshots)</h3>
+                    <div id="chart-iot-oracle" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-correlation" class="tab-content">
+        <div class="section">
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <h3 class="chart-title" tabindex="0" data-definition="Pairwise Pearson correlations among key post-migration variables (2023-04-18 onward). Only columns with 10+ valid observations are included. Green = positive correlation (move together); red = negative (move inversely); gray = near-zero/weak linear relationship.">Correlation Matrix (Post-Migration Variables)</h3>
+                    <div id="chart-corr" class="chart-container" style="height: 480px;"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Scatter of HNT price vs BTC price across all years (2021–2026). Points are color-coded by calendar year — click a year in the legend to isolate or hide it. Enables visual inspection of whether the HNT–BTC relationship strengthened or weakened over time and across the Solana migration structural break.">HNT vs BTC Price (by Year — click legend to filter)</h3>
+                    <div id="chart-corr-hnt-btc" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="Scatter of daily DC burn transaction count vs HNT price by year. Color-coded by calendar year — click legend to filter. Isolating 2024 vs 2025 reveals whether the DC-burns–price relationship is structurally stable or regime-dependent.">DC Burns vs HNT Price (by Year — click legend to filter)</h3>
+                    <div id="chart-corr-dc-hnt" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title" tabindex="0" data-definition="IOT vs MOBILE token price scatter by calendar year. Color-coded and legend-filterable. High intra-year correlation with diverging cluster positions across years indicates shared market beta with regime-shifting valuation levels.">IOT vs MOBILE Token Price (by Year — click legend to filter)</h3>
+                    <div id="chart-corr-iot-mob" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-coverage" class="tab-content">
+        <div class="section">
+            <h2>Data Coverage by Column</h2>
+            <div id="coverage-grid" class="coverage-grid"></div>
+        </div>
+    </div>
+
+    <div id="tab-map" class="tab-content">
+        <div class="section">
+            <h2>Helium Network Coverage Map</h2>
+            <p style="color:var(--muted);font-size:0.85rem;margin-bottom:8px;">H3 resolution-8 tile centroids — scraped <span id="map-date"></span>. IoT heatmap (green) overlaid with Mobile 5G radio locations (pink dots). Use layer controls top-right to toggle. Data: <span id="map-stats"></span>.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#22c55e;opacity:0.85;"></span><span style="font-size:0.8rem;color:var(--muted);">IoT Hotspot Density</span></div>
+                <div style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ec4899;opacity:0.85;"></span><span style="font-size:0.8rem;color:var(--muted);">MOBILE 5G Radios</span></div>
+            </div>
+            <div id="helium-map" style="height:580px;border-radius:8px;border:1px solid var(--border);"></div>
+        </div>
+    </div>
+
+    <div class="footnote" id="footnote"></div>
+
+    <script>
+    // ── Theme support ────────────────────────────────────────────────────────
+    (function() {
+        const saved = localStorage.getItem('helium-theme');
+        if (saved) {
+            document.documentElement.dataset.theme = saved;
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.getElementById('theme-btn');
+                if (btn) btn.textContent = saved === 'light' ? '\u263d Dark' : '\u2600\ufe0e Light';
+            });
+        }
+    })();
+
+    function getLayoutDefaults() {
+        const isLight = document.documentElement.dataset.theme === 'light';
+        return {
+            paper_bgcolor: isLight ? '#ffffff' : '#1a1d29',
+            plot_bgcolor:  isLight ? '#f4f6fb' : '#1a1d29',
+            font: { color: isLight ? '#1a1d29' : '#e0e0e0', family: '-apple-system, system-ui, sans-serif', size: 12 },
+            margin: { t: 10, r: 20, b: 40, l: 55 },
+            xaxis: { gridcolor: isLight ? '#dde1ef' : '#2a2d3a', showgrid: true },
+            yaxis: { gridcolor: isLight ? '#dde1ef' : '#2a2d3a', showgrid: true },
+            legend: { orientation: 'h', y: -0.15 },
+            hovermode: 'x unified',
+        };
+    }
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        const next = html.dataset.theme === 'light' ? 'dark' : 'light';
+        html.dataset.theme = next;
+        document.getElementById('theme-btn').textContent = next === 'light' ? '\u263d Dark' : '\u2600\ufe0e Light';
+        localStorage.setItem('helium-theme', next);
+        const lay = getLayoutDefaults();
+        document.querySelectorAll('[id^="chart-"]').forEach(el => {
+            try {
+                Plotly.relayout(el.id, {
+                    paper_bgcolor: lay.paper_bgcolor,
+                    plot_bgcolor:  lay.plot_bgcolor,
+                    'font.color':       lay.font.color,
+                    'xaxis.gridcolor':  lay.xaxis.gridcolor,
+                    'yaxis.gridcolor':  lay.yaxis.gridcolor,
+                });
+            } catch(e) {}
+        });
+    }
+
+    const CONFIG = { responsive: true, displayModeBar: false };
+    function mergeLay(extra) { return { ...getLayoutDefaults(), ...extra }; }
+    function fmt(n, dec=0) {
+        if (n == null) return '—';
+        if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+        if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+        return Number(n).toFixed(dec);
+    }
+    function filterNulls(dates, values) {
+        const d = [], v = [];
+        for (let i = 0; i < dates.length; i++) {
+            if (values[i] != null) { d.push(dates[i]); v.push(values[i]); }
+        }
+        return { x: d, y: v };
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            window.dispatchEvent(new Event('resize')); // re-render charts
+        });
+    });
+
+    fetch('data.json').then(r => r.json()).then(data => {
+        const { dates, series, summary, coverage, monthly, correlation } = data;
+
+        // KPIs
+        const kpis = [
+            { label: 'Date Range', value: summary.date_range.split(' → ').pop(), sub: summary.date_range },
+            { label: 'Total Rows', value: fmt(summary.total_rows), sub: `${summary.total_columns} columns` },
+            { label: 'HNT Price', value: '$' + (summary.hnt_price_latest || 0).toFixed(2), sub: 'Latest close' },
+            { label: 'BTC Price', value: '$' + fmt(summary.btc_price_latest), sub: 'Latest close' },
+            { label: 'IoT Devices', value: fmt(summary.iot_devices_latest), sub: 'Active (oracle)' },
+            { label: 'Mobile Devices', value: fmt(summary.mobile_devices_latest), sub: 'Active (oracle)' },
+            { label: 'Mobile Subscribers', value: fmt(summary.mobile_subscribers_latest), sub: 'Dune cumulative' },
+            { label: 'DC Burns Total', value: fmt(summary.dc_burns_total), sub: 'Transactions scanned' },
+        ];
+        document.getElementById('kpis').innerHTML = kpis.map(k =>
+            `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`
+        ).join('');
+
+        // Migration line shape
+        const migrationLine = {
+            type: 'line', x0: '2023-04-18', x1: '2023-04-18', y0: 0, y1: 1,
+            yref: 'paper', line: { color: '#f59e0b', width: 1.5, dash: 'dash' }
+        };
+        const mobile5gLine = {
+            type: 'line', x0: '2023-12-05', x1: '2023-12-05', y0: 0, y1: 1,
+            yref: 'paper', line: { color: '#ec4899', width: 1.5, dash: 'dot' }
+        };
+
+        // === PRICES TAB ===
+        const hnt = filterNulls(dates, series.hnt_close);
+        const hnt7 = filterNulls(dates, series.HNT_Close7);
+        Plotly.newPlot('chart-hnt-price', [
+            { ...hnt, type: 'scatter', mode: 'lines', name: 'HNT Close', line: { color: '#6366f1', width: 1.5 } },
+            { ...hnt7, type: 'scatter', mode: 'lines', name: '7-Day MA', line: { color: '#22d3ee', width: 2 } },
+        ], mergeLay({
+            shapes: [migrationLine, mobile5gLine],
+            annotations: [
+                { x: '2023-04-18', y: 1, yref: 'paper', text: 'Solana Migration', showarrow: false, font: { color: '#f59e0b', size: 10 }, yanchor: 'bottom' },
+                { x: '2023-12-05', y: 0.93, yref: 'paper', text: 'Helium Mobile 5G Start', showarrow: false, font: { color: '#ec4899', size: 10 }, yanchor: 'bottom' },
+            ]
+        }), CONFIG);
+
+        const vol = filterNulls(dates, series.hnt_volume_usd);
+        Plotly.newPlot('chart-hnt-volume', [
+            { ...vol, type: 'bar', name: 'Volume USD', marker: { color: '#6366f180' } },
+        ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+
+        const btc = filterNulls(dates, series.btc_close);
+        Plotly.newPlot('chart-btc-price', [
+            { ...btc, type: 'scatter', mode: 'lines', name: 'BTC', line: { color: '#f59e0b', width: 1.5 } },
+        ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+
+        const iot = filterNulls(dates, series.iot_close);
+        Plotly.newPlot('chart-iot-price', [
+            { ...iot, type: 'scatter', mode: 'lines', name: 'IOT', line: { color: '#22c55e', width: 1.5 } },
+        ], mergeLay({}), CONFIG);
+
+        const mob = filterNulls(dates, series.mobile_close);
+        Plotly.newPlot('chart-mobile-price', [
+            { ...mob, type: 'scatter', mode: 'lines', name: 'MOBILE', line: { color: '#ec4899', width: 1.5 } },
+        ], mergeLay({}), CONFIG);
+
+        // Normalized performance (rebased at Solana migration = 1.0)
+        if (series.hnt_norm_mig && series.btc_norm_mig) {
+            const hntNorm = filterNulls(dates, series.hnt_norm_mig);
+            const btcNorm = filterNulls(dates, series.btc_norm_mig);
+            Plotly.newPlot('chart-hnt-btc-norm', [
+                { ...hntNorm, type: 'scatter', mode: 'lines', name: 'HNT (index)', line: { color: '#6366f1', width: 1.5 } },
+                { ...btcNorm, type: 'scatter', mode: 'lines', name: 'BTC (index)', line: { color: '#f59e0b', width: 1.5 } },
+            ], mergeLay({
+                shapes: [migrationLine, mobile5gLine],
+                yaxis: { ...getLayoutDefaults().yaxis, title: 'Price Index (Migration = 1.0)' },
+            }), CONFIG);
+        }
+
+        // 30-day rolling annualized volatility
+        if (series.hnt_vol30 && series.btc_vol30) {
+            const hntVol = filterNulls(dates, series.hnt_vol30);
+            const btcVol = filterNulls(dates, series.btc_vol30);
+            Plotly.newPlot('chart-volatility', [
+                { ...hntVol, type: 'scatter', mode: 'lines', name: 'HNT 30d Vol (%)', line: { color: '#6366f1', width: 1.5 } },
+                { ...btcVol, type: 'scatter', mode: 'lines', name: 'BTC 30d Vol (%)', line: { color: '#f59e0b', width: 1.5, dash: 'dot' } },
+            ], mergeLay({
+                shapes: [migrationLine],
+                yaxis: { ...getLayoutDefaults().yaxis, title: 'Annualized Volatility (%)' },
+            }), CONFIG);
+        }
+
+        // === NETWORK TAB ===
+        // DC burns: raw bars + 7-day MA + 30-day MA
+        const dcRaw = filterNulls(dates, series.dc_burn_tx_count);
+        const dc7ma  = series.dc_burn_7ma  ? filterNulls(dates, series.dc_burn_7ma)  : null;
+        const dc30ma = series.dc_burn_30ma ? filterNulls(dates, series.dc_burn_30ma) : null;
+        Plotly.newPlot('chart-dc-burns', [
+            { ...dcRaw, type: 'bar', name: 'DC Burns/day', marker: { color: '#22d3ee30' } },
+            ...(dc7ma  ? [{ ...dc7ma,  type: 'scatter', mode: 'lines', name: '7-Day MA',  line: { color: '#22d3ee', width: 1.5 } }] : []),
+            ...(dc30ma ? [{ ...dc30ma, type: 'scatter', mode: 'lines', name: '30-Day MA', line: { color: '#f59e0b', width: 2.0 } }] : []),
+        ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+
+        const iotDc = filterNulls(dates, series.iot_dc_burned);
+        const mobDc = filterNulls(dates, series.mobile_dc_burned);
+        Plotly.newPlot('chart-dc-subdao', [
+            { ...iotDc, type: 'bar', name: 'IoT', marker: { color: '#22c55e' } },
+            { ...mobDc, type: 'bar', name: 'Mobile', marker: { color: '#ec4899' } },
+        ], mergeLay({ barmode: 'stack' }), CONFIG);
+
+        if (monthly) {
+            Plotly.newPlot('chart-monthly-burns', [
+                { x: monthly.months, y: monthly.dc_burns, type: 'bar', name: 'DC Burns', marker: { color: '#6366f1' } },
+            ], mergeLay({}), CONFIG);
+        }
+
+        // Cumulative DC burns
+        if (series.dc_burn_cumulative) {
+            const dcCum = filterNulls(dates, series.dc_burn_cumulative);
+            Plotly.newPlot('chart-dc-cumulative', [
+                { ...dcCum, type: 'scatter', mode: 'lines', name: 'Cumulative Burns',
+                  line: { color: '#22c55e', width: 2 }, fill: 'tozeroy', fillcolor: '#22c55e15' },
+            ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+        }
+
+        // Day-of-week median DC burns
+        if (data.dow) {
+            Plotly.newPlot('chart-dc-dow', [
+                { x: data.dow.labels, y: data.dow.values, type: 'bar', name: 'Median DC Burns',
+                  marker: { color: ['#6366f1','#6366f1','#6366f1','#6366f1','#6366f1','#22c55e','#22c55e'] } },
+            ], mergeLay({ xaxis: { ...getLayoutDefaults().xaxis, title: 'Day of Week', type: 'category' },
+                          yaxis: { ...getLayoutDefaults().yaxis, title: 'Median DC Burns' } }), CONFIG);
+        }
+
+        // === MOBILE TAB ===
+        // Subscribers + cumulative radios dual series
+        const subsData = filterNulls(dates, series.dune_mobile_subscribers);
+        const cumRadios = series.mobile_cumulative_registered ? filterNulls(dates, series.mobile_cumulative_registered) : null;
+        Plotly.newPlot('chart-subscribers', [
+            { ...subsData, type: 'scatter', mode: 'lines', name: 'Subscribers', line: { color: '#ec4899', width: 2 }, fill: 'tozeroy', fillcolor: '#ec489915' },
+            ...(cumRadios ? [{ ...cumRadios, type: 'scatter', mode: 'lines', name: '5G Radios (cumulative)', line: { color: '#22d3ee', width: 1.5 }, yaxis: 'y2' }] : []),
+        ], mergeLay({
+            shapes: [mobile5gLine],
+            yaxis2: { overlaying: 'y', side: 'right', showgrid: false, color: '#22d3ee', title: '5G Radios' },
+        }), CONFIG);
+
+        const dataTb = filterNulls(dates, series.mobile_data_tb);
+        Plotly.newPlot('chart-data-tb', [
+            { ...dataTb, type: 'scatter', mode: 'lines', name: 'TB/day', line: { color: '#22d3ee', width: 1.5 } },
+        ], mergeLay({}), CONFIG);
+
+        const treas = filterNulls(dates, series.mobile_treasury_balance);
+        Plotly.newPlot('chart-treasury', [
+            { ...treas, type: 'scatter', mode: 'lines', name: 'MOBILE Balance', line: { color: '#f59e0b', width: 1.5 } },
+        ], mergeLay({}), CONFIG);
+
+        // Daily new 5G radio onboardings
+        if (series.mobile_new_radios_onchain) {
+            const dailyRadios = filterNulls(dates, series.mobile_new_radios_onchain);
+            Plotly.newPlot('chart-mobile-radios-daily', [
+                { ...dailyRadios, type: 'bar', name: 'New 5G Radios/day', marker: { color: '#22d3ee70' } },
+            ], mergeLay({ shapes: [mobile5gLine] }), CONFIG);
+        }
+
+        // Mobile subscriber 30-day growth rate
+        if (series.mob_sub_30d_growth) {
+            const subGrowth = filterNulls(dates, series.mob_sub_30d_growth);
+            Plotly.newPlot('chart-sub-growth', [
+                { ...subGrowth, type: 'scatter', mode: 'lines', name: '30d Growth %',
+                  line: { color: '#ec4899', width: 1.5 }, fill: 'tozeroy', fillcolor: '#ec489910' },
+            ], mergeLay({
+                shapes: [mobile5gLine],
+                yaxis: { ...getLayoutDefaults().yaxis, title: '30-Day Growth (%)' },
+            }), CONFIG);
+        }
+
+        // === HOTSPOTS TAB ===
+        if (series.daily_hotspot_creations) {
+            const creates = filterNulls(dates, series.daily_hotspot_creations);
+            const deaths  = filterNulls(dates, series.daily_hotspot_deaths);
+            Plotly.newPlot('chart-hotspot-create-death', [
+                { ...creates, type: 'bar', name: 'Daily Creations', marker: { color: '#22c55e70' } },
+                deaths.x.length > 0 ? {
+                    x: deaths.x, y: deaths.y.map(v => -v),
+                    type: 'bar', name: 'Daily Deaths',
+                    marker: { color: '#ef444470' }
+                } : null,
+            ].filter(Boolean), mergeLay({ barmode: 'overlay', shapes: [migrationLine], yaxis: { ...getLayoutDefaults().yaxis, title: 'Hotspots / day' } }), CONFIG);
+
+            const netChg = filterNulls(dates, series.daily_hotspot_net_change);
+            if (netChg.x.length > 0) {
+                Plotly.newPlot('chart-hotspot-net', [{
+                    ...netChg, type: 'bar', name: 'Net Change',
+                    marker: { color: netChg.y.map(v => (v >= 0 ? '#22c55e' : '#ef4444')) }
+                }], mergeLay({ shapes: [migrationLine] }), CONFIG);
+            }
+
+            const totHot = filterNulls(dates, series.hotspots_registered);
+            Plotly.newPlot('chart-hotspot-total', [
+                { ...totHot, type: 'scatter', mode: 'lines', name: 'Total Hotspots',
+                  line: { color: '#6366f1', width: 2 }, fill: 'tozeroy', fillcolor: '#6366f115' },
+            ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+
+            const owners = filterNulls(dates, series.total_hotspot_owners);
+            if (owners.x.length > 0) {
+                Plotly.newPlot('chart-hotspot-owners', [
+                    { ...owners, type: 'scatter', mode: 'lines', name: 'Unique Owners',
+                      line: { color: '#f59e0b', width: 2 }, fill: 'tozeroy', fillcolor: '#f59e0b15' },
+                ], mergeLay({ shapes: [migrationLine] }), CONFIG);
+            }
+        }
+
+        // Post-Solana hotspot charts
+        if (series.mobile_cumulative_registered) {
+            const cumReg = filterNulls(dates, series.mobile_cumulative_registered);
+            Plotly.newPlot('chart-radio-cumulative', [
+                { ...cumReg, type: 'scatter', mode: 'lines', name: '5G Radios (cumulative)',
+                  line: { color: '#22d3ee', width: 2 }, fill: 'tozeroy', fillcolor: '#22d3ee15' },
+            ], mergeLay({ shapes: [mobile5gLine], yaxis: { ...getLayoutDefaults().yaxis, title: '5G Radios Registered' } }), CONFIG);
+        }
+
+        if (series.mobile_new_radios_onchain) {
+            const newRad = filterNulls(dates, series.mobile_new_radios_onchain);
+            Plotly.newPlot('chart-radio-daily', [
+                { ...newRad, type: 'bar', name: 'New 5G Radios/day', marker: { color: '#22d3ee70' } },
+            ], mergeLay({ shapes: [mobile5gLine] }), CONFIG);
+        }
+
+        // IoT oracle snapshots — sparse point chart
+        if (series.active_iot_devices) {
+            const iotOra = filterNulls(dates, series.active_iot_devices);
+            if (iotOra.x.length > 0) {
+                Plotly.newPlot('chart-iot-oracle', [
+                    { ...iotOra, type: 'scatter', mode: 'markers+lines', name: 'Active IoT Devices',
+                      line: { color: '#22c55e', width: 1.5, dash: 'dot' },
+                      marker: { color: '#22c55e', size: 6 } },
+                ], mergeLay({ shapes: [migrationLine], yaxis: { ...getLayoutDefaults().yaxis, title: 'Active IoT Devices' } }), CONFIG);
+            }
+        }
+
+        // === CORRELATION TAB ===
+        // Year palette — one color per calendar year for legend-based filtering
+        const YEAR_COLORS = {
+            '2021': '#f59e0b',  // amber
+            '2022': '#22c55e',  // green
+            '2023': '#6366f1',  // indigo  (straddles Solana migration)
+            '2024': '#22d3ee',  // cyan
+            '2025': '#ec4899',  // pink
+            '2026': '#fb923c',  // orange
+        };
+
+        // Returns one Plotly trace per calendar year (click legend year to toggle)
+        function makeScatterByYear(xVals, yVals, xLabel, yLabel) {
+            const byYear = {};
+            for (let i = 0; i < dates.length; i++) {
+                const xv = xVals[i], yv = yVals[i];
+                if (xv == null || yv == null) continue;
+                const yr = dates[i].slice(0, 4);
+                if (!byYear[yr]) byYear[yr] = { xs: [], ys: [], ts: [] };
+                byYear[yr].xs.push(xv);
+                byYear[yr].ys.push(yv);
+                byYear[yr].ts.push(dates[i]);
+            }
+            return Object.keys(byYear).sort().map(yr => ({
+                x: byYear[yr].xs,
+                y: byYear[yr].ys,
+                text: byYear[yr].ts,
+                mode: 'markers',
+                type: 'scatter',
+                name: yr,
+                marker: { color: YEAR_COLORS[yr] || '#8b8fa3', size: 4, opacity: 0.72 },
+                hovertemplate: `${xLabel}: %{x:.4f}<br>${yLabel}: %{y:.4f}<br>%{text}<extra>${yr}</extra>`,
+            }));
+        }
+
+        if (correlation) {
+            // Fix: override hovermode to 'closest' for heatmap (not 'x unified')
+            const corrLay = {
+                ...getLayoutDefaults(),
+                margin: { t: 10, r: 20, b: 110, l: 140 },
+                height: 480,
+                hovermode: 'closest',
+            };
+            Plotly.newPlot('chart-corr', [{
+                type: 'heatmap',
+                z: correlation.values,
+                x: correlation.labels,
+                y: correlation.labels,
+                // Midpoint #6b7280 (neutral gray) is visible against both dark and light bg
+                colorscale: [[0, '#ef4444'], [0.5, '#6b7280'], [1, '#22c55e']],
+                zmin: -1, zmax: 1,
+                text: correlation.values.map(row => row.map(v => v != null ? v.toFixed(2) : '')),
+                texttemplate: '%{text}',
+                textfont: { size: 11 },
+                hoverongaps: false,
+            }], corrLay, CONFIG);
+
+            // Scatter plots — one trace per year (click legend to filter years)
+            const scatterBase = {
+                ...getLayoutDefaults(),
+                hovermode: 'closest',
+                margin: { t: 10, r: 20, b: 70, l: 65 },
+                legend: { orientation: 'h', y: -0.22, x: 0.5, xanchor: 'center' },
+            };
+
+            Plotly.newPlot('chart-corr-hnt-btc',
+                makeScatterByYear(series.hnt_close, series.btc_close, 'HNT', 'BTC'),
+                { ...scatterBase, xaxis: { ...scatterBase.xaxis, title: 'HNT Price (USD)' }, yaxis: { ...scatterBase.yaxis, title: 'BTC Price (USD)' } }, CONFIG);
+
+            Plotly.newPlot('chart-corr-dc-hnt',
+                makeScatterByYear(series.dc_burn_tx_count, series.hnt_close, 'DC Burns/day', 'HNT Price'),
+                { ...scatterBase, xaxis: { ...scatterBase.xaxis, title: 'DC Burns / day' }, yaxis: { ...scatterBase.yaxis, title: 'HNT Price (USD)' } }, CONFIG);
+
+            Plotly.newPlot('chart-corr-iot-mob',
+                makeScatterByYear(series.iot_close, series.mobile_close, 'IOT', 'MOBILE'),
+                { ...scatterBase, xaxis: { ...scatterBase.xaxis, title: 'IOT Price (USD)' }, yaxis: { ...scatterBase.yaxis, title: 'MOBILE Price (USD)' } }, CONFIG);
+        }
+
+        // === COVERAGE TAB ===
+        const covEntries = Object.entries(coverage).sort((a, b) => b[1] - a[1]);
+        document.getElementById('coverage-grid').innerHTML = covEntries.map(([name, pct]) => {
+            const color = pct >= 80 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444';
+            return `<div class="cov-row">
+                <span class="cov-name">${name}</span>
+                <div class="cov-bar-bg"><div class="cov-bar" style="width:${pct}%;background:${color}"></div></div>
+                <span class="cov-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+
+        document.getElementById('footnote').textContent =
+            `Generated: ${data.generated_at} | HICSS-58 Extension Study — Helium Network Post-Solana Migration Analysis`;
+    }).catch(err => {
+        document.body.innerHTML = `<div style="padding:2rem;color:#ef4444">
+            <h2>Error loading data</h2>
+            <p>Run <code>python dashboard/generate_data.py</code> to generate dashboard data.</p>
+            <pre>${err}</pre>
+        </div>`;
+    });
+
+    // ── Coverage Map (lazy-loaded when tab is first clicked) ─────────────────
+    let mapInitialized = false;
+    document.querySelectorAll('.tab').forEach(tab => {
+        if (tab.dataset.tab === 'map') {
+            tab.addEventListener('click', () => {
+                if (mapInitialized) return;
+                mapInitialized = true;
+                initCoverageMap();
+            });
+        }
+    });
+
+    function initCoverageMap() {
+        const mapEl = document.getElementById('helium-map');
+        if (!mapEl) return;
+
+        const isLight = document.documentElement.dataset.theme === 'light';
+        const tileUrl = isLight
+            ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+        const map = L.map('helium-map', { zoomControl: true }).setView([20, 0], 2);
+        L.tileLayer(tileUrl, {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        fetch('coverage.json').then(r => r.json()).then(cov => {
+            document.getElementById('map-date').textContent = cov.scraped || '';
+            document.getElementById('map-stats').textContent =
+                `${cov.iot_tiles.toLocaleString()} IoT tiles · ${cov.mobile_tiles.toLocaleString()} Mobile tiles`;
+
+            const { lats, lngs, iots, mobs } = cov;
+            const n = lats.length;
+
+            // IoT heatmap (green gradient)
+            const iotHeat = [];
+            for (let i = 0; i < n; i++) {
+                if (iots[i] > 0) iotHeat.push([lats[i], lngs[i], Math.min(iots[i] / 10, 1)]);
+            }
+
+            const iotLayer = L.heatLayer(iotHeat, {
+                radius: 12, blur: 8, maxZoom: 10,
+                gradient: { 0.0: '#052e16', 0.3: '#16a34a', 0.7: '#22c55e', 1.0: '#86efac' },
+            }).addTo(map);
+
+            // Mobile markers (pink circles, canvas renderer for performance)
+            const mobRenderer = L.canvas();
+            const mobileMarkers = [];
+            for (let i = 0; i < n; i++) {
+                if (mobs[i] > 0) {
+                    mobileMarkers.push(L.circleMarker([lats[i], lngs[i]], {
+                        radius: Math.max(3, Math.min(8, Math.log2(mobs[i] + 1) + 1)),
+                        color: '#ec4899', fillColor: '#ec4899', fillOpacity: 0.7,
+                        weight: 0, renderer: mobRenderer,
+                    }).bindTooltip(`5G Radios: ${mobs[i]}`, { permanent: false }));
+                }
+            }
+            const mobileLayer = L.layerGroup(mobileMarkers).addTo(map);
+
+            L.control.layers(null, {
+                'IoT Heatmap': iotLayer,
+                'Mobile 5G Radios': mobileLayer,
+            }, { collapsed: false, position: 'topright' }).addTo(map);
+
+            // Re-apply dark mode filter
+            if (document.documentElement.dataset.theme === 'dark') {
+                document.querySelectorAll('.leaflet-tile').forEach(t => {
+                    t.style.filter = 'invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7)';
+                });
+            }
+        }).catch(() => {
+            mapEl.innerHTML = '<div style="padding:2rem;color:#f59e0b">Coverage map data not found — run <code>python dashboard/generate_data.py</code></div>';
+        });
+    }
+    </script>
+</body>
+</html>
