@@ -4,10 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helium Network Research Dashboard</title>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <meta name="description" content="Open companion dashboard to research on the Helium Network: 1,936 days of price, usage, deployment and coverage data, with every empirical claim in the paper traceable to the series behind it.">
+    <meta name="author" content="Pouria Rad, Mohsen Jozani, Gianluca Zanella, Morteza Safaei Pour, Kaveh Abhari">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Helium Network Research Dashboard">
+    <meta property="og:description" content="Every empirical claim in our Helium research, traceable to the data behind it. 2021-2026 daily panel plus a 176,967-tile global coverage snapshot.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128225;</text></svg>">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"
+            integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7"
+            crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+          crossorigin="anonymous" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+            crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"
+            integrity="sha384-mFKkGiGvT5vo1fEyGCD3hshDdKmW3wzXW/x+fWriYJArD0R3gawT6lMvLboM22c0"
+            crossorigin="anonymous"></script>
     <style>
         :root {
             --bg: #0f1117;
@@ -21,6 +36,7 @@
             --orange: #f59e0b;
             --red: #ef4444;
             --pink: #ec4899;
+            --tooltip-bg: #0b0d12;
         }
         [data-theme="light"] {
             --bg: #f4f6fb;
@@ -34,6 +50,7 @@
             --orange: #d97706;
             --red: #dc2626;
             --pink: #db2777;
+            --tooltip-bg: #ffffff;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -121,7 +138,7 @@
             transform: translateY(-4px);
             pointer-events: none;
             transition: all 0.15s ease;
-            background: #0b0d12;
+            background: var(--tooltip-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 0.55rem 0.7rem;
@@ -139,6 +156,89 @@
         }
         .chart-container { width: 100%; height: 320px; }
         .chart-wide { grid-column: 1 / -1; }
+        .callout {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--orange);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        .callout strong { color: var(--orange); }
+
+        /* ---- Paper Claims ---- */
+        .intro {
+            padding: 0 2rem;
+            max-width: 78ch;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .intro strong { color: var(--text); }
+        .claim-grid { display: grid; gap: 1rem; }
+        .claim {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--muted);
+            border-radius: 10px;
+            padding: 1rem 1.2rem;
+        }
+        .claim.ok      { border-left-color: var(--green); }
+        .claim.check   { border-left-color: var(--orange); }
+        .claim.conflict{ border-left-color: var(--red); }
+        .claim.scope   { border-left-color: var(--accent2); }
+        .claim-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.6rem;
+            margin-bottom: 0.5rem;
+        }
+        .claim-quote {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            flex: 1 1 320px;
+            line-height: 1.45;
+        }
+        .badge {
+            font-size: 0.68rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+        .badge.ok      { background: rgba(34,197,94,0.15);  color: var(--green); }
+        .badge.check   { background: rgba(245,158,11,0.15); color: var(--orange); }
+        .badge.conflict{ background: rgba(239,68,68,0.15);  color: var(--red); }
+        .badge.scope   { background: rgba(34,211,238,0.15); color: var(--accent2); }
+        .badge.pillar  { background: rgba(99,102,241,0.15); color: var(--accent); }
+        .claim dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 0.3rem 1rem;
+            font-size: 0.85rem;
+            margin-top: 0.6rem;
+        }
+        .claim dt { color: var(--muted); white-space: nowrap; }
+        .claim dd { color: var(--text); }
+        .claim .jump {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--accent2);
+            border-radius: 6px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.78rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .claim .jump:hover { border-color: var(--accent2); }
+        .defn-list { font-size: 0.85rem; }
+        .defn-list dt { font-weight: 600; margin-top: 0.8rem; color: var(--text); }
+        .defn-list dd { color: var(--muted); margin-left: 0; }
         .coverage-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -217,7 +317,7 @@
         <div class="header-row">
             <div>
                 <h1>Helium Network Research Dashboard</h1>
-                <p>HICSS-58 Extension Study — Pouria Rad, Mohsen Jozani &amp; Gianluca Zanella</p>
+                <p>Open companion to our research on the Helium Network &middot; Pouria Rad, Mohsen Jozani, Gianluca Zanella, Morteza Safaei Pour &amp; Kaveh Abhari</p>
             </div>
             <button id="theme-btn" class="theme-toggle" onclick="toggleTheme()">&#9728;&#xFE0E; Light</button>
         </div>
@@ -226,7 +326,8 @@
     <div id="kpis" class="kpi-grid"></div>
 
     <div class="tab-bar">
-        <div class="tab active" data-tab="prices">Prices</div>
+        <div class="tab active" data-tab="claims">Paper Claims</div>
+        <div class="tab" data-tab="prices">Prices</div>
         <div class="tab" data-tab="network">Network</div>
         <div class="tab" data-tab="hotspots">Hotspots</div>
         <div class="tab" data-tab="mobile">Mobile</div>
@@ -235,7 +336,20 @@
         <div class="tab" data-tab="map">&#x1F5FA; Map</div>
     </div>
 
-    <div id="tab-prices" class="tab-content active">
+    <div id="tab-claims" class="tab-content active">
+        <div class="section">
+            <p class="intro" style="padding-left:0;margin-bottom:1.25rem;">
+                Every empirical claim our research makes about the Helium Network, listed with the
+                figure as published, the source it came from, and what <strong>this dashboard's own
+                data</strong> says about it. Where the two differ, both are shown. Claims are grouped
+                by the pillar of the ERA framework they support. Use the buttons to jump to the chart
+                that carries the evidence.
+            </p>
+            <div id="claims" class="claim-grid"></div>
+        </div>
+    </div>
+
+    <div id="tab-prices" class="tab-content">
         <div class="section">
             <div class="chart-grid">
                 <div class="chart-card chart-wide">
@@ -282,7 +396,7 @@
                     <div id="chart-dc-cumulative" class="chart-container"></div>
                 </div>
                 <div class="chart-card">
-                    <h3 class="chart-title" tabindex="0" data-definition="Median DC burn transaction count by day of week (Mon–Sun). Tests whether IoT data transmission exhibits weekday-weekend periodicity — relevant for identifying human-driven vs sensor-driven usage patterns.">DC Burns by Day of Week (Median, All Time)</h3>
+                    <h3 class="chart-title" tabindex="0" data-definition="Median DC burn transaction count by day of week (Mon to Sun). This tests whether data transmission follows a weekday-weekend rhythm. It does not: the medians span only about 3 percent from lowest to highest, so this chart reports a null result and is kept for transparency rather than because it shows a pattern.">DC Burns by Day of Week (Median, All Time): No Weekday Effect</h3>
                     <div id="chart-dc-dow" class="chart-container"></div>
                 </div>
                 <div class="chart-card">
@@ -326,7 +440,7 @@
 
     <div id="tab-hotspots" class="tab-content">
         <div class="section">
-            <h2>Pre-Solana Era (2021–2023) — HICSS Research Data</h2>
+            <h2>Pre-Solana era (2021&ndash;2023)</h2>
             <div class="chart-grid">
                 <div class="chart-card chart-wide">
                     <h3 class="chart-title" tabindex="0" data-definition="Daily new hotspot activations (green) vs daily hotspot deaths/churn (red, inverted) across the Helium IoT network. Data sourced from the HICSS paper V6 dataset covering pre-Solana era 2021–2023. A decline in creations and rise in deaths signals network consolidation.">Daily Hotspot Creations vs Deaths (Pre-Solana Era)</h3>
@@ -347,11 +461,17 @@
             </div>
         </div>
         <div class="section">
-            <div style="background:#1e2030;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:0.85rem;color:var(--muted);">
-                <strong style="color:#f59e0b;">&#x26A0; Data Limitation — Post-Solana Hotspot Deaths</strong><br>
-                The Helium Solana entity manager records <em>onboarding</em> events only — there is no on-chain &ldquo;death&rdquo; or deactivation instruction. Post-Solana hotspot churn cannot be recovered from blockchain data. The only available proxy is the oracle <code>active_iot_devices</code> snapshot delta (2 data points: Apr 7 → Apr 20, 2026: 207,332 → 204,389 = &minus;2,943 net), which will grow at 1 point per day via the daily scraper. IoT cumulative registrations (from <code>--mode iot --backfill</code> scan, pending) will enable a lifetime-registered minus active calculation once available.
+            <div class="callout">
+                <strong>Data limitation: hotspot deactivations after the Solana migration</strong><br>
+                Helium's Solana entity manager records <em>onboarding</em> events only. There is no
+                on-chain deactivation instruction, so hotspot churn after April 2023 cannot be
+                recovered from blockchain data at all. Counts below are therefore cumulative
+                registrations, not active devices, and the two diverge widely. The only direct
+                measure of active devices is an oracle snapshot, currently two readings 13 days
+                apart (7 April 2026: 207,332; 20 April 2026: 204,389). Treat it as a point-in-time
+                reading, not a trend.
             </div>
-            <h2>Post-Solana Era (2023–Present) — On-Chain Entity Scan</h2>
+            <h2>Post-Solana era (2023&ndash;present), on-chain registrations</h2>
             <div class="chart-grid">
                 <div class="chart-card chart-wide">
                     <h3 class="chart-title" tabindex="0" data-definition="Cumulative 5G (MOBILE) radio deployments from Solana on-chain entity manager. Each point represents a hotspot operator's radio registered on-chain — the post-migration equivalent of pre-Solana hotspot activations for the Mobile subDAO. IoT hotspot count to follow once IoT backfill scan completes.">Cumulative 5G Radio Registrations (Post-Migration)</h3>
@@ -373,7 +493,7 @@
         <div class="section">
             <div class="chart-grid">
                 <div class="chart-card chart-wide">
-                    <h3 class="chart-title" tabindex="0" data-definition="Pairwise Pearson correlations among key post-migration variables (2023-04-18 onward). Only columns with 10+ valid observations are included. Green = positive correlation (move together); red = negative (move inversely); gray = near-zero/weak linear relationship.">Correlation Matrix (Post-Migration Variables)</h3>
+                    <h3 class="chart-title" tabindex="0" data-definition="Pairwise Pearson correlations among key post-migration variables (2023-04-18 onward). Only columns with 10 or more valid observations are included. Green means the two move together, red means they move inversely, gray means little linear relationship. Important caveat: these are computed on price and count levels, not on returns or first differences. Trending series correlate with each other simply because both trend, so the large positive coefficients among the price series should be read as co-movement over time rather than as evidence that one drives the other.">Correlation Matrix (Post-Migration Variables)</h3>
                     <div id="chart-corr" class="chart-container" style="height: 480px;"></div>
                 </div>
                 <div class="chart-card">
@@ -394,8 +514,26 @@
 
     <div id="tab-coverage" class="tab-content">
         <div class="section">
+            <div class="callout" style="border-left-color:var(--accent2)">
+                <strong style="color:var(--accent2)">How to read the coverage figures</strong><br>
+                Coverage is the share of the 1,936 daily rows in which a column has a value. Low
+                coverage reflects limits of the upstream public sources, not gaps in collection:
+                free-tier APIs cap history at 365 days, Helium's metrics feed serves a rolling
+                182-day window, and the oracle device counts are point-in-time readings rather
+                than a series. Sparse fields are kept rather than filled with modelled values, so
+                that what was actually observed stays auditable.
+            </div>
             <h2>Data Coverage by Column</h2>
             <div id="coverage-grid" class="coverage-grid"></div>
+        </div>
+        <div class="section">
+            <h2>Operational definitions</h2>
+            <p class="intro" style="padding-left:0;margin-bottom:1rem;">
+                Every chart in this dashboard carries a definition of what it measures and where the
+                data came from. They are reproduced here as selectable text, because the hover
+                tooltips are unreachable on touch devices and cannot be copied or cited.
+            </p>
+            <dl id="definitions" class="defn-list"></dl>
         </div>
     </div>
 
@@ -468,6 +606,19 @@
         if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
         return Number(n).toFixed(dec);
     }
+    function dropDuplicateSeries(corr, label) {
+        const i = corr.labels.indexOf(label);
+        if (i < 0) return corr;
+        return {
+            labels: corr.labels.filter((_, k) => k !== i),
+            values: corr.values.filter((_, k) => k !== i).map(row => row.filter((_, k) => k !== i)),
+        };
+    }
+    function lastOf(arr) {
+        if (!arr) return null;
+        for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i];
+        return null;
+    }
     function filterNulls(dates, values) {
         const d = [], v = [];
         for (let i = 0; i < dates.length; i++) {
@@ -487,6 +638,124 @@
         });
     });
 
+    // ==================================================================
+    // PAPER CLAIMS
+    // Each empirical claim the paper makes, with the figure as published, its
+    // source, and what this panel's own data says. status: ok | check |
+    // conflict | scope (scope = outside what this dataset can measure).
+    // ==================================================================
+    const PAPER_CLAIMS = [
+      {
+        pillar: 'Reward', status: 'ok',
+        claim: 'HNT’s market value fell sharply through Q4 2025 even as network usage rose.',
+        paper: 'Circulating market capitalization fell 43.9 percent, from $453.9M to $254.7M.',
+        source: 'Messari, State of Helium Q4 2025',
+        ours: 'Independently reproduced. HNT closed at $2.44 on 1 Oct 2025 and $1.37 on 1 Jan 2026, giving market caps of $453.8M and $254.5M, a 43.9 percent fall. Our own price series shows a 48.3 percent decline over the quarter against 26.2 percent for Bitcoin, so HNT underperformed the broad market by about 22 points.',
+        note: 'The decline has continued. HNT traded at $0.20 with a $36.5M market cap in August 2026, a further 86 percent below the year-end figure. The decoupling the paper describes is now more pronounced, not less.',
+        chart: 'chart-hnt-price', tab: 'prices',
+      },
+      {
+        pillar: 'Reward', status: 'ok',
+        claim: 'Token rewards decoupled from the service participants actually delivered.',
+        paper: 'Asserted narratively as the platform’s defining vulnerability.',
+        source: 'This dashboard',
+        ours: 'Across the post-migration period, HNT price correlates negatively with network usage: r = −0.73 against mobile data consumption and r = −0.35 against subscriber growth. Price and usage moved in opposite directions.',
+        note: 'This is the paper’s central Reward claim, measured here directly rather than through a third-party research note. Correlations are computed on levels rather than returns, so read them as co-movement over time.',
+        chart: 'chart-corr', tab: 'correlation',
+      },
+      {
+        pillar: 'Reward', status: 'conflict',
+        claim: 'The network now earns recurring commercial revenue rather than speculative inflows.',
+        paper: '$24 million in revenue in January 2026 alone.',
+        source: 'Secondary aggregator, since traced and corrected',
+        ours: 'The figure is an annualized run rate that was relabelled as a monthly total. Helium earned roughly $2.2M in January 2026 and $6.9M across the whole of Q1 2026, up 32 percent quarter over quarter. Two independent methodologies agree: monthly figures of $2.2M, $2.2M and $2.5M sum exactly to Messari’s $6.9M quarterly total.',
+        note: 'The underlying claim survives. Helium does earn real recurring revenue, and it grew. Only the magnitude was wrong, by roughly an order of magnitude. This dataset holds no revenue series and cannot measure it directly.',
+        chart: null, tab: null,
+      },
+      {
+        pillar: 'Reward', status: 'check',
+        claim: 'Carrier offload volume grew steeply through late 2025.',
+        paper: 'Growing 60.7 percent quarter over quarter to a cumulative 9,839 terabytes.',
+        source: 'Messari, State of Helium Q4 2025',
+        ours: 'Both numbers are right but they describe different things and should not share one clause. The 60.7 percent growth was to 4,388 TB within Q4 2025; 9,839 TB is the cumulative total since the programme began. Our own traffic series starts 27 Oct 2025, too late for a quarterly comparison, but shows the daily average rising from 45.2 TB/day in October 2025 to 111.7 TB/day in March 2026.',
+        note: 'Directionally corroborated. The published sentence welds a quarterly growth rate onto a lifetime cumulative total.',
+        chart: 'chart-data-tb', tab: 'mobile',
+      },
+      {
+        pillar: 'Reward', status: 'conflict',
+        claim: 'Household-name carriers pay to use community-built coverage.',
+        paper: 'Partnerships followed with T-Mobile, Movistar, AT&T, Google Orion and Wefi.',
+        source: 'Messari and Helium disclosures',
+        ours: 'T-Mobile is the reciprocal relationship, not an offload partner. T-Mobile hosts Helium Mobile as a mobile virtual network operator, so Helium pays T-Mobile rather than the other way round. T-Mobile has stated on the record that it has no carrier offload agreement with Helium.',
+        note: 'AT&T and Telefónica’s Movistar are well documented as offload partners. Google Orion and Wefi are named consistently in reporting but we found no primary announcement from either.',
+        chart: null, tab: null,
+      },
+      {
+        pillar: 'Empower', status: 'conflict',
+        claim: 'The network is sustained by hotspots deployed by individuals rather than telecommunications firms.',
+        paper: 'Approximately 376,000 active hotspots.',
+        source: 'Messari, State of Helium Q1 2025',
+        ours: 'Wrong quarter, wrong metric. 376,000 is the Q1 2025 cumulative IoT registration total (34,500 onboarded since the Solana migration plus a frozen legacy tally of 342,000), not a count of active devices, and it excludes the mobile network entirely. The Q4 2025 equivalent is over 385,000. Mobile hotspots numbered 121,138. Our own oracle snapshot for 20 Apr 2026 records 204,389 active IoT devices and 20,062 active mobile radios.',
+        note: 'The gap between "registered" and "active" is roughly fourfold and runs in both networks. Any hotspot count needs its basis stated. Helium’s own figure for active mobile hotspots is 120,000+.',
+        chart: 'chart-iot-oracle', tab: 'hotspots',
+      },
+      {
+        pillar: 'Empower', status: 'ok',
+        claim: 'Decentralization has progressed much further for IoT than for the newer Mobile layer.',
+        paper: 'Not currently in the paper.',
+        source: 'This dashboard',
+        ours: 'Across 176,967 tiles scraped 7 Apr 2026, IoT coverage is comparatively even (Gini 0.154) while Mobile is concentrated (Gini 0.44, with the top 10 percent of covered tiles holding 40.2 percent of radios). Mobile deployment is almost entirely North American.',
+        note: 'Directly relevant to the Empower pillar and available from our own data. Proposed as an addition to the paper.',
+        chart: null, tab: 'map',
+      },
+      {
+        pillar: 'Adapt', status: 'conflict',
+        claim: 'Token rewards drove deployment to a global buildout of hundreds of thousands of devices.',
+        paper: 'Hundreds of thousands of devices at its 2021 peak.',
+        source: 'Helium whitepaper and network history',
+        ours: 'Cumulative hotspots stood at 442,233 on 31 Dec 2021 and kept climbing to 964,114 by 18 Apr 2023, the day of the Solana migration. 2021 was not the peak.',
+        note: 'The magnitude is right but the year is wrong: deployment more than doubled after 2021. Our pre-migration series is right-censored at the migration date, so 964,114 is the highest observed value rather than a proven all-time maximum.',
+        chart: 'chart-hotspot-total', tab: 'hotspots',
+      },
+      {
+        pillar: 'Adapt', status: 'ok',
+        claim: 'Helium completed a contested migration to Solana in April 2023.',
+        paper: 'The 2023 migration to Solana, completed 18 April 2023.',
+        source: 'HIP 70',
+        ours: 'Our structural-break variable is defined at 18 Apr 2023 and the pre-migration hotspot series terminates on exactly that date, at 964,114 cumulative hotspots.',
+        note: 'Date confirmed independently by the point at which the on-chain record changes basis.',
+        chart: 'chart-hotspot-total', tab: 'hotspots',
+      },
+    ];
+
+    function renderClaims() {
+      const LABEL = { ok: 'Corroborated', check: 'Verifying', conflict: 'Discrepancy', scope: 'Beyond this dataset' };
+      document.getElementById('claims').innerHTML = PAPER_CLAIMS.map(c => `
+        <div class="claim ${c.status}">
+          <div class="claim-head">
+            <span class="claim-quote">${c.claim}</span>
+            <span class="badge pillar">${c.pillar}</span>
+            <span class="badge ${c.status}">${LABEL[c.status]}</span>
+          </div>
+          <dl>
+            <dt>As published</dt><dd>${c.paper}</dd>
+            <dt>Source</dt><dd>${c.source}</dd>
+            <dt>This dataset</dt><dd>${c.ours}</dd>
+            ${c.note ? `<dt>Reading it</dt><dd>${c.note}</dd>` : ''}
+          </dl>
+          ${c.tab ? `<p style="margin-top:0.7rem"><button class="jump" onclick="jumpTo('${c.tab}','${c.chart || ''}')">See the evidence &rarr;</button></p>` : ''}
+        </div>`).join('');
+    }
+
+    function jumpTo(tab, chartId) {
+      const t = document.querySelector(`.tab[data-tab="${tab}"]`);
+      if (t) t.click();
+      if (chartId) {
+        const el = document.getElementById(chartId);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
+      }
+    }
+
     fetch('data.json').then(r => r.json()).then(data => {
         const { dates, series, summary, coverage, monthly, correlation } = data;
 
@@ -496,9 +765,10 @@
             { label: 'Total Rows', value: fmt(summary.total_rows), sub: `${summary.total_columns} columns` },
             { label: 'HNT Price', value: '$' + (summary.hnt_price_latest || 0).toFixed(2), sub: 'Latest close' },
             { label: 'BTC Price', value: '$' + fmt(summary.btc_price_latest), sub: 'Latest close' },
-            { label: 'IoT Devices', value: fmt(summary.iot_devices_latest), sub: 'Active (oracle)' },
-            { label: 'Mobile Devices', value: fmt(summary.mobile_devices_latest), sub: 'Active (oracle)' },
-            { label: 'Mobile Subscribers', value: fmt(summary.mobile_subscribers_latest), sub: 'Dune cumulative' },
+            { label: 'Active IoT Devices', value: fmt(summary.iot_devices_latest), sub: 'Oracle snapshot, 20 Apr 2026' },
+            { label: 'Active Mobile Radios', value: fmt(summary.mobile_devices_latest), sub: 'Oracle snapshot, 20 Apr 2026' },
+            { label: 'Mobile Subscribers', value: fmt(lastOf(series.mobile_subscribers)), sub: 'Helium metrics feed, current' },
+            { label: 'Subscriber NFTs Minted', value: fmt(summary.mobile_subscribers_latest), sub: 'Cumulative, to 16 Dec 2025' },
             { label: 'DC Burns Total', value: fmt(summary.dc_burns_total), sub: 'Transactions scanned' },
         ];
         document.getElementById('kpis').innerHTML = kpis.map(k =>
@@ -759,6 +1029,11 @@
         }
 
         if (correlation) {
+            // 'Daily Txns' is byte-for-byte identical to 'DC Burns/day': the upstream column
+            // falls back to the same source when its preferred input is absent. Showing both
+            // puts a spurious r = 1.00 in the matrix and overstates how many independent
+            // signals the panel carries, so one is dropped here.
+            const corr = dropDuplicateSeries(correlation, 'Daily Txns');
             // Fix: override hovermode to 'closest' for heatmap (not 'x unified')
             const corrLay = {
                 ...getLayoutDefaults(),
@@ -768,13 +1043,13 @@
             };
             Plotly.newPlot('chart-corr', [{
                 type: 'heatmap',
-                z: correlation.values,
-                x: correlation.labels,
-                y: correlation.labels,
+                z: corr.values,
+                x: corr.labels,
+                y: corr.labels,
                 // Midpoint #6b7280 (neutral gray) is visible against both dark and light bg
                 colorscale: [[0, '#ef4444'], [0.5, '#6b7280'], [1, '#22c55e']],
                 zmin: -1, zmax: 1,
-                text: correlation.values.map(row => row.map(v => v != null ? v.toFixed(2) : '')),
+                text: corr.values.map(row => row.map(v => v != null ? v.toFixed(2) : '')),
                 texttemplate: '%{text}',
                 textfont: { size: 11 },
                 hoverongaps: false,
@@ -812,12 +1087,27 @@
             </div>`;
         }).join('');
 
+        // === OPERATIONAL DEFINITIONS ===
+        // Built from the data-definition attributes already on every chart title, so the
+        // selectable list can never drift out of sync with the tooltips.
+        document.getElementById('definitions').innerHTML =
+            [...document.querySelectorAll('.chart-title[data-definition]')]
+                .map(el => `<dt>${el.textContent.trim()}</dt><dd>${el.dataset.definition}</dd>`)
+                .join('');
+
+        // === PAPER CLAIMS ===
+        renderClaims();
+
         document.getElementById('footnote').textContent =
-            `Generated: ${data.generated_at} | HICSS-58 Extension Study — Helium Network Post-Solana Migration Analysis`;
+            `Time series 1 Jan 2021 to 20 Apr 2026 (${fmt(data.summary.total_rows)} daily rows). ` +
+            `Coverage map scraped 7 Apr 2026. Built ${(data.generated_at || '').slice(0, 10)}. ` +
+            `Helium Network research, Zenith Lab.`;
     }).catch(err => {
         document.body.innerHTML = `<div style="padding:2rem;color:#ef4444">
-            <h2>Error loading data</h2>
-            <p>Run <code>python dashboard/generate_data.py</code> to generate dashboard data.</p>
+            <h2>The charts could not be loaded</h2>
+            <p>This usually means the charting library or the data file did not download. Reload the page,
+            and if you are viewing these files locally, serve the folder over HTTP rather than opening
+            index.html directly.</p>
             <pre>${err}</pre>
         </div>`;
     });
@@ -894,7 +1184,7 @@
                 });
             }
         }).catch(() => {
-            mapEl.innerHTML = '<div style="padding:2rem;color:#f59e0b">Coverage map data not found — run <code>python dashboard/generate_data.py</code></div>';
+            mapEl.innerHTML = '<div style="padding:2rem;color:#f59e0b">Coverage map data could not be loaded.</div>';
         });
     }
     </script>
