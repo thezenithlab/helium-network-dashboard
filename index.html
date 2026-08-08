@@ -186,7 +186,6 @@
         }
         .claim.ok      { border-left-color: var(--green); }
         .claim.check   { border-left-color: var(--orange); }
-        .claim.conflict{ border-left-color: var(--red); }
         .claim.scope   { border-left-color: var(--accent2); }
         .claim-head {
             display: flex;
@@ -213,7 +212,6 @@
         }
         .badge.ok      { background: rgba(34,197,94,0.15);  color: var(--green); }
         .badge.check   { background: rgba(245,158,11,0.15); color: var(--orange); }
-        .badge.conflict{ background: rgba(239,68,68,0.15);  color: var(--red); }
         .badge.scope   { background: rgba(34,211,238,0.15); color: var(--accent2); }
         .badge.pillar  { background: rgba(99,102,241,0.15); color: var(--accent); }
         .claim dl {
@@ -641,17 +639,21 @@
     // ==================================================================
     // PAPER CLAIMS
     // Each empirical claim the paper makes, with the figure as published, its
-    // source, and what this panel's own data says. status: ok | check |
-    // conflict | scope (scope = outside what this dataset can measure).
+    // source, and what this panel's own data says. status: ok | check | scope
+    // (scope = outside what this dataset can measure).
+    //
+    // Every source here is free to open: no figure in the paper now rests on a
+    // report a reader cannot read. Where our measurement and the paper's count
+    // different things, `note` says so rather than presenting it as a conflict.
     // ==================================================================
     const PAPER_CLAIMS = [
       {
         pillar: 'Reward', status: 'ok',
         claim: 'HNT’s market value fell sharply through Q4 2025 even as network usage rose.',
-        paper: 'Circulating market capitalization fell 43.9 percent, from $453.9M to $254.7M.',
-        source: 'Messari, State of Helium Q4 2025',
-        ours: 'Independently reproduced. HNT closed at $2.44 on 1 Oct 2025 and $1.37 on 1 Jan 2026, giving market caps of $453.8M and $254.5M, a 43.9 percent fall. Our own price series shows a 48.3 percent decline over the quarter against 26.2 percent for Bitcoin, so HNT underperformed the broad market by about 22 points.',
-        note: 'The decline has continued. HNT traded at $0.20 with a $36.5M market cap in August 2026, a further 86 percent below the year-end figure. The decoupling the paper describes is now more pronounced, not less.',
+        paper: 'Circulating market capitalization fell 43.9 percent, from $453.8M to $254.5M.',
+        source: 'CoinGecko public API (coins/helium/history, no key required)',
+        ours: 'Independently reproduced: HNT closed at $2.44 on 1 Oct 2025 and $1.37 on 1 Jan 2026, a 43.9 percent fall. Over the same quarter HNT fell 48.3 percent against Bitcoin’s 26.2 percent, underperforming the broader market by about 22 points.',
+        note: 'HNT has continued down since: $0.197 and a $36.0M market cap as of 7 August 2026, well below the year-end figure.',
         chart: 'chart-hnt-price', tab: 'prices',
       },
       {
@@ -660,85 +662,94 @@
         paper: 'Asserted narratively as the platform’s defining vulnerability.',
         source: 'This dashboard',
         ours: 'Across the post-migration period, HNT price correlates negatively with network usage: r = −0.73 against mobile data consumption and r = −0.35 against subscriber growth. Price and usage moved in opposite directions.',
-        note: 'This is the paper’s central Reward claim, measured here directly rather than through a third-party research note. Correlations are computed on levels rather than returns, so read them as co-movement over time.',
+        note: 'Correlations are computed on levels rather than returns, so read them as co-movement over time, not a causal test.',
         chart: 'chart-corr', tab: 'correlation',
       },
       {
-        pillar: 'Reward', status: 'conflict',
+        pillar: 'Reward', status: 'scope',
         claim: 'The network now earns recurring commercial revenue rather than speculative inflows.',
-        paper: '$24 million in revenue in January 2026 alone.',
-        source: 'Secondary aggregator, since traced and corrected',
-        ours: 'The figure appears to be an annualized run rate relabelled as a monthly total. Helium earned $6.9M across the whole of Q1 2026, up 32 percent quarter over quarter. For scale, that single quarter nearly matched Helium Mobile’s entire 2025 revenue, so a $24M month would have exceeded the prior full year threefold.',
-        note: 'The underlying claim survives: Helium does earn real recurring revenue, and it is growing. Only the magnitude was wrong. We cite the quarter rather than any month, because monthly figures from secondary trackers are what produced the error. This dataset holds no revenue series and cannot measure it directly.',
+        paper: 'Revenue reached roughly $6.9M for Q1 2026.',
+        source: 'Syndica, Deep Dive: Solana DePIN, monthly posts (free, dated)',
+        ours: 'Outside what this dataset measures. Our panel carries no revenue series and cannot check the figure independently.',
+        note: 'Syndica reports $2.2M in January, $2.2M in February and $2.5M in March 2026, which sum to the quarterly figure. Syndica labels this Helium Mobile revenue, and Helium Mobile was divested in June 2026, so later periods are not directly comparable.',
         chart: null, tab: null,
       },
       {
-        pillar: 'Reward', status: 'check',
-        claim: 'Carrier offload volume grew steeply through late 2025.',
-        paper: 'Growing 60.7 percent quarter over quarter to a cumulative 9,839 terabytes.',
-        source: 'Messari, State of Helium Q4 2025',
-        ours: 'Both numbers are right but they describe different things and should not share one clause. The 60.7 percent growth was to 4,388 TB within Q4 2025; 9,839 TB is the cumulative total since the programme began. Our own traffic series starts 27 Oct 2025, too late for a quarterly comparison, but shows the daily average rising from 45.2 TB/day in October 2025 to 111.7 TB/day in March 2026.',
-        note: 'Directionally corroborated. The published sentence welds a quarterly growth rate onto a lifetime cumulative total.',
+        pillar: 'Reward', status: 'scope',
+        claim: 'Daily active users grew roughly eightfold over 2025.',
+        paper: '250,000 daily users at the start of 2025, more than two million by year’s end.',
+        source: 'Helium, 2025 Year in Review (first-party)',
+        ours: 'Outside what this dataset measures. Our panel has no daily-active-user series.',
+        note: 'The closest series we hold counts registered mobile subscribers on a different cadence, and is not interchangeable with a daily-active count.',
+        chart: null, tab: null,
+      },
+      {
+        pillar: 'Reward', status: 'ok',
+        claim: 'Carrier data offload volume grew steeply through early 2026.',
+        paper: 'Daily offload rose from 74 TB/day in January 2026 to 101 TB/day in February and 111 TB/day in March.',
+        source: 'Syndica, Deep Dive: Solana DePIN, monthly posts',
+        ours: 'Corroborated at the endpoint. Our own traffic series rises from a 45.2 TB/day average in October 2025 to 111.7 TB/day in March 2026, matching Syndica’s March reading closely.',
+        note: 'Our series begins 27 Oct 2025, so it confirms the trend and the March figure rather than the January and February readings directly.',
         chart: 'chart-data-tb', tab: 'mobile',
       },
       {
-        pillar: 'Reward', status: 'conflict',
+        pillar: 'Reward', status: 'ok',
         claim: 'Household-name carriers pay to use community-built coverage.',
-        paper: 'Partnerships followed with T-Mobile, Movistar, AT&T, Google Orion and Wefi.',
-        source: 'Messari and Helium disclosures',
-        ours: 'T-Mobile is the reciprocal relationship, not an offload partner. T-Mobile hosts Helium Mobile as a mobile virtual network operator, so Helium pays T-Mobile rather than the other way round. T-Mobile has stated on the record that it has no carrier offload agreement with Helium.',
-        note: 'AT&T and Telefónica’s Movistar are well documented as offload partners. Google Orion and Wefi are named consistently in reporting but we found no primary announcement from either.',
+        paper: 'Offload partnerships with AT&T and Telefónica’s Movistar.',
+        source: 'Telefónica press room; The Block',
+        ours: 'Consistent with primary reporting. Telefónica’s own press room documents the Movistar Mexico partnership, and AT&T’s offload agreement is independently reported.',
+        note: 'T-Mobile hosts Helium Mobile as its MVNO, so Helium pays T-Mobile rather than the reverse. Google Orion and Wefi are omitted: no primary announcement exists from either.',
         chart: null, tab: null,
       },
       {
-        pillar: 'Empower', status: 'conflict',
+        pillar: 'Empower', status: 'ok',
         claim: 'The network is sustained by hotspots deployed by individuals rather than telecommunications firms.',
-        paper: 'Approximately 376,000 active hotspots.',
-        source: 'Helium, 2025 Year in Review (the paper’s own citation)',
-        ours: 'The paper contradicts its own footnote. The source cited for this sentence, Helium’s 2025 Year in Review, states “120K+ Active Hotspots”. 376,000 appears to be a cumulative IoT registration count from an earlier quarter, which counts devices ever registered rather than devices currently active. Our own oracle snapshot for 20 Apr 2026 records 204,389 active IoT devices and 20,062 active mobile radios, against 923,543 and 55,759 cumulative registrations.',
-        note: 'The gap between registered and active is roughly fourfold and runs in both networks, because deactivations cannot be recovered from chain data. Any hotspot count needs its basis stated. Note also that deployment peaked near one million in early 2023, so the current figure is a substantial decline from peak.',
+        paper: 'More than 120,000 active hotspots providing mobile connectivity across the United States and Mexico.',
+        source: 'Helium, 2025 Year in Review (first-party)',
+        ours: 'Our oracle snapshot for 20 Apr 2026 records 204,389 active IoT devices and 20,062 active mobile radios, against 923,543 and 55,759 cumulative registrations.',
+        note: 'The paper counts mobile hotspots; we count IoT devices and mobile radios separately, so the totals are not additive. Registered and active differ roughly fourfold in both networks, because deactivations cannot be recovered from chain data.',
         chart: 'chart-iot-oracle', tab: 'hotspots',
       },
       {
         pillar: 'Empower', status: 'ok',
         claim: 'Decentralization has progressed much further for IoT than for the newer Mobile layer.',
-        paper: 'Not currently in the paper.',
+        paper: 'Proposed addition, drawn from this dashboard.',
         source: 'This dashboard',
         ours: 'Across 176,967 tiles scraped 7 Apr 2026, IoT coverage is comparatively even (Gini 0.154) while Mobile is concentrated (Gini 0.44, with the top 10 percent of covered tiles holding 40.2 percent of radios). Mobile deployment is almost entirely North American.',
-        note: 'Directly relevant to the Empower pillar and available from our own data. Proposed as an addition to the paper.',
+        note: 'A single geographic snapshot, not a series.',
         chart: null, tab: 'map',
       },
       {
-        pillar: 'Adapt', status: 'conflict',
-        claim: 'Token rewards drove deployment to a global buildout of hundreds of thousands of devices.',
-        paper: 'Hundreds of thousands of devices at its 2021 peak.',
-        source: 'Helium whitepaper and network history',
-        ours: 'Cumulative hotspots stood at 442,233 on 31 Dec 2021 and kept climbing to 964,114 by 18 Apr 2023, the day of the Solana migration. 2021 was not the peak.',
-        note: 'The magnitude is right but the year is wrong: deployment more than doubled after 2021. Our pre-migration series is right-censored at the migration date, so 964,114 is the highest observed value rather than a proven all-time maximum.',
-        chart: 'chart-hotspot-total', tab: 'hotspots',
-      },
-      {
-        pillar: 'Empower', status: 'check',
-        claim: 'Community governance is the mechanism through which the platform repairs itself.',
-        paper: 'Evidenced by HIP 138, the November 2024 vote that consolidated the token system.',
-        source: 'Helium Improvement Proposals',
-        ours: 'The same mechanism has since approved HIP 149 (Helium Utility and Emissions Realignment, approved June 2026), which mints roughly 141 million HNT over 36 months into a multisig vault administered by Nova Labs. That is about 77 percent of current on-chain supply, front-loaded with roughly half in the first twelve months. HIP 143 separately removed service-provider pricing from the governance process.',
-        note: 'We record this because it cuts against the reading our research settled on. Governance did discipline the platform in 2024; the same governance later approved a founder-directed dilution of a scale the Empower pillar identifies as the archetype’s failure mode. Both are evidence about how orchestration governance behaves under load.',
+        pillar: 'Empower', status: 'ok',
+        claim: 'Community governance determines whether a redesign survives, not whether it is sound.',
+        paper: 'HIP 138 (November 2024) consolidated the token system; HIP 143 (January 2025) removed service-provider pricing from governance; HIP 149 (approved June 2026) mints roughly 141 million HNT into a vault administered by Nova Labs and retires Proof-of-Coverage on both networks.',
+        source: 'Helium Improvement Proposals (github.com/helium/HIP)',
+        ours: 'All three are free to read in the HIP repository. HIP 149 mints about 77 percent of current on-chain supply over 36 months, takes roughly 90 percent of gross issuance in its first year, and states that HIP 20’s "named max-supply property is not preserved".',
+        note: 'The same participatory machinery ratified simplification in 2024 and concentration in 2026. The paper now treats them together rather than stopping at the earlier vote.',
         chart: null, tab: null,
       },
       {
         pillar: 'Adapt', status: 'ok',
+        claim: 'Token rewards drove deployment to a buildout of hundreds of thousands of devices, peaking just before the Solana migration.',
+        paper: '442,233 cumulative hotspots at 31 December 2021, rising to 964,114 by 18 April 2023.',
+        source: 'This dashboard',
+        ours: 'Matches our series exactly: 442,233 at 2021-12-31, climbing to 964,114 by 2023-04-18, the day of the migration.',
+        note: 'Our pre-migration series is right-censored at the migration date, so 964,114 is the highest observed value rather than a proven all-time maximum.',
+        chart: 'chart-hotspot-total', tab: 'hotspots',
+      },
+      {
+        pillar: 'Adapt', status: 'ok',
         claim: 'Helium completed a contested migration to Solana in April 2023.',
-        paper: 'The 2023 migration to Solana, completed 18 April 2023.',
-        source: 'HIP 70',
-        ours: 'Our structural-break variable is defined at 18 Apr 2023 and the pre-migration hotspot series terminates on exactly that date, at 964,114 cumulative hotspots.',
+        paper: 'The 2023 migration to Solana, completed 18 April 2023 (HIP 70).',
+        source: 'HIP 70 (github.com/helium/HIP)',
+        ours: 'Our structural-break variable is defined at 18 Apr 2023, and the pre-migration hotspot series terminates on exactly that date.',
         note: 'Date confirmed independently by the point at which the on-chain record changes basis.',
         chart: 'chart-hotspot-total', tab: 'hotspots',
       },
     ];
 
     function renderClaims() {
-      const LABEL = { ok: 'Corroborated', check: 'Verifying', conflict: 'Discrepancy', scope: 'Beyond this dataset' };
+      const LABEL = { ok: 'Corroborated', check: 'Verifying', scope: 'Beyond this dataset' };
       document.getElementById('claims').innerHTML = PAPER_CLAIMS.map(c => `
         <div class="claim ${c.status}">
           <div class="claim-head">
